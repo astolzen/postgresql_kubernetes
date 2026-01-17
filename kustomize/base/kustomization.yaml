@@ -1,0 +1,62 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: postgresql-pgadmin
+  namespace: database
+
+# Namespace for all resources
+namespace: database
+
+# Common labels applied to all resources
+commonLabels:
+  app.kubernetes.io/name: postgresql
+  app.kubernetes.io/component: database
+  app.kubernetes.io/part-of: postgresql-stack
+
+# Resources to include
+resources:
+  - namespace.yaml
+  - pvc.yaml
+  - statefulset.yaml
+  - service-postgresql.yaml
+  - service-pgadmin.yaml
+  - route-pgadmin.yaml
+
+# Secret generators for sensitive data
+secretGenerator:
+  - name: postgresql-secret
+    literals:
+      - postgres-user=postgres
+      - postgres-password=changeme-secure-password
+      - postgres-db=postgres
+  
+  - name: pgadmin-secret
+    literals:
+      - pgadmin-email=admin@example.com
+      - pgadmin-password=admin123
+  
+  - name: quay-secret
+    type: kubernetes.io/dockerconfigjson
+    files:
+      - .dockerconfigjson=docker-config.json
+
+# ConfigMap generator
+configMapGenerator:
+  - name: postgresql-config
+    files:
+      - postgresql.conf=postgresql-custom.conf
+
+# Images to use - CHANGE THESE VALUES
+images:
+  - name: postgresql-image
+    newName: your-registry.example.com/postgresql
+    newTag: "18"
+  
+  - name: pgadmin-image
+    newName: your-registry.example.com/pgadmin
+    newTag: latest
+
+# Generate config hash suffix for ConfigMaps and Secrets
+generatorOptions:
+  disableNameSuffixHash: false

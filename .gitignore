@@ -1,0 +1,298 @@
+# PostgreSQL and pgAdmin Deployment Project - .gitignore
+
+# ============================================================
+# Sensitive Files - NEVER commit these!
+# ============================================================
+
+# Secrets and credentials
+**/secrets.yaml
+**/secrets.yml
+**/secrets.env
+**/vault.yaml
+**/vault.yml
+*.vault
+.vault_pass
+.vault_password
+
+# Private values files
+**/values-private.yaml
+**/values-private.yml
+**/my-values.yaml
+**/production-secrets.yaml
+
+# Ansible vault files
+**/*vault*.yaml
+**/*vault*.yml
+
+# SSH keys
+*.pem
+*.key
+id_rsa*
+*.pub
+
+# ============================================================
+# Kubernetes and Container Tools
+# ============================================================
+
+# Kubectl
+.kube/
+kubeconfig*
+
+# Helm
+.helm/
+*.tgz
+*.lock
+
+# Kustomize
+kustomization-local.yaml
+
+# ============================================================
+# Ansible
+# ============================================================
+
+# Ansible
+*.retry
+.ansible/
+ansible.log
+*.ansible_vault
+
+# Ansible inventory with credentials
+inventory/production/group_vars/vault.yaml
+inventory/staging/group_vars/vault.yaml
+inventory/*/group_vars/vault.yaml
+
+# ============================================================
+# Temporary and Build Files
+# ============================================================
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*backup*
+*.old
+
+# Test files
+*.test
+test-*.yaml
+test-*.yml
+
+# Build directories
+build/
+dist/
+target/
+
+# ============================================================
+# IDE and Editor Files
+# ============================================================
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+
+# Vim
+*.swp
+*.swo
+.*.swp
+.*.swo
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# PyCharm
+.pycharm/
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# ============================================================
+# Logs and Databases
+# ============================================================
+
+# Log files
+*.log
+logs/
+*.out
+*.err
+
+# Database dumps
+*.sql
+*.dump
+*.dmp
+backup-*.sql
+pg_dump_*
+
+# ============================================================
+# Python
+# ============================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# ============================================================
+# Node.js (if using any JS tools)
+# ============================================================
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# ============================================================
+# Container Images and Registry
+# ============================================================
+
+# Local container images
+*.tar
+*.tar.gz
+*.tgz
+
+# Registry auth
+.docker/
+.dockercfg
+.dockerconfigjson
+docker-config.json
+auth.json
+
+# Podman auth
+auth.json
+containers-auth.json
+
+# ============================================================
+# Cloud Provider Credentials
+# ============================================================
+
+# AWS
+.aws/
+*.pem
+
+# GCP
+*.json
+gcloud/
+.gcp/
+
+# Azure
+.azure/
+
+# ============================================================
+# TLS Certificates and Keys
+# ============================================================
+
+# SSL/TLS certificates
+*.crt
+*.cer
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.truststore
+
+# Certificate signing requests
+*.csr
+
+# ============================================================
+# Documentation Build Output
+# ============================================================
+
+# Sphinx
+docs/_build/
+docs/.doctrees/
+
+# MkDocs
+site/
+
+# ============================================================
+# OS-Specific Files
+# ============================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+.Trash-*
+
+# ============================================================
+# Git
+# ============================================================
+
+# Git merge files
+*.orig
+*.BACKUP.*
+*.BASE.*
+*.LOCAL.*
+*.REMOTE.*
+
+# ============================================================
+# Project-Specific Exclusions
+# ============================================================
+
+# Local development overrides
+local/
+local-*.yaml
+local-*.yml
+
+# Personal notes
+NOTES.md
+TODO-personal.md
+scratch/
+sandbox/
+
+# CI/CD local testing
+.gitlab-ci-local/
+.github-actions-local/
+
+# Terraform state (if using)
+*.tfstate
+*.tfstate.backup
+.terraform/
+terraform.tfvars
+
+# ============================================================
+# Include Examples
+# ============================================================
+
+# Allow example files (but not actual secrets)
+!secrets.yaml.example
+!secrets.env.example
+!vault.yaml.example
+!values-private.yaml.example

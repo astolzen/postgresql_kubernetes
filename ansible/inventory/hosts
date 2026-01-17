@@ -1,0 +1,6 @@
+[localhost]
+localhost ansible_connection=local ansible_python_interpreter=/usr/bin/python3
+
+[kubernetes]
+# Add your Kubernetes/OpenShift API server if needed
+# k8s-master ansible_host=api.cluster.example.com

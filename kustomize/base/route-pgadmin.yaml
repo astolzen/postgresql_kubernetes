@@ -1,0 +1,16 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: pgadmin
+  labels:
+    app: postgresql
+    component: pgadmin4
+spec:
+  host: pgadmin.example.com  # CHANGE THIS
+  to:
+    kind: Service
+    name: pgadmin
+    weight: 100
+  port:
+    targetPort: http
+  wildcardPolicy: None

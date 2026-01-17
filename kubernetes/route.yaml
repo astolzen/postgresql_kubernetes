@@ -1,0 +1,23 @@
+---
+# OpenShift Route for pgAdmin4
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: pgadmin
+  namespace: database
+  labels:
+    app: postgresql
+    component: pgadmin4
+spec:
+  host: pgadmin.example.com  # Change to your hostname
+  to:
+    kind: Service
+    name: pgadmin
+    weight: 100
+  port:
+    targetPort: http
+  wildcardPolicy: None
+  # Uncomment for TLS
+  # tls:
+  #   termination: edge
+  #   insecureEdgeTerminationPolicy: Redirect

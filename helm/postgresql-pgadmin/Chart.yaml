@@ -1,0 +1,22 @@
+apiVersion: v2
+name: postgresql-pgadmin
+description: A Helm chart for PostgreSQL 18 with pgAdmin4 on Kubernetes/OpenShift
+type: application
+version: 1.0.0
+appVersion: "18.1"
+keywords:
+  - postgresql
+  - postgres
+  - database
+  - pgadmin
+  - pgadmin4
+  - sql
+home: https://github.com/yourusername/postgresql-pgadmin
+sources:
+  - https://www.postgresql.org/
+  - https://www.pgadmin.org/
+maintainers:
+  - name: your-name
+    email: maintainer@example.com
+icon: https://www.postgresql.org/media/img/about/press/elephant.png
+kubeVersion: ">=1.19.0-0"

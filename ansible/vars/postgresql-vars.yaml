@@ -1,0 +1,172 @@
+---
+# PostgreSQL + pgAdmin Deployment Variables
+
+# Namespace Configuration
+namespace: database
+create_namespace: true
+
+# Application Metadata
+app_name: postgresql-pgadmin
+app_version: "18.1"
+release_name: postgresql
+
+# PostgreSQL Configuration
+postgresql:
+  enabled: true
+  
+  # Image Configuration
+  image:
+    registry: your-registry.example.com
+    repository: postgresql
+    tag: "18"
+    pull_policy: Always
+  
+  # Authentication - CHANGE THESE VALUES
+  auth:
+    username: postgres
+    password: CHANGE_ME_SECURE_PASSWORD
+    database: postgres
+  
+  # Service Configuration
+  service:
+    name: postgresql
+    type: ClusterIP
+    port: 5432
+  
+  # Persistence Configuration
+  persistence:
+    enabled: true
+    storage_class: ""  # Empty for default
+    access_modes:
+      - ReadWriteOnce
+    size: 10Gi
+  
+  # Resource Limits
+  resources:
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+  
+  # Probes
+  liveness_probe:
+    initial_delay: 30
+    period: 10
+    timeout: 5
+    failure_threshold: 3
+  
+  readiness_probe:
+    initial_delay: 5
+    period: 5
+    timeout: 3
+    failure_threshold: 3
+  
+  # PostgreSQL Configuration
+  config:
+    max_connections: 100
+    shared_buffers: "256MB"
+    effective_cache_size: "1GB"
+    maintenance_work_mem: "64MB"
+    work_mem: "4MB"
+    wal_buffers: "16MB"
+    min_wal_size: "1GB"
+    max_wal_size: "4GB"
+    random_page_cost: 1.1
+    effective_io_concurrency: 200
+    default_statistics_target: 100
+    checkpoint_completion_target: 0.9
+
+# pgAdmin Configuration
+pgadmin:
+  enabled: true
+  
+  # Image Configuration
+  image:
+    registry: your-registry.example.com
+    repository: pgadmin
+    tag: latest
+    pull_policy: Always
+  
+  # Authentication - CHANGE THESE VALUES
+  auth:
+    email: admin@example.com
+    password: CHANGE_ME_ADMIN_PASSWORD
+  
+  # Service Configuration
+  service:
+    name: pgadmin
+    type: ClusterIP
+    port: 80
+    target_port: 8080
+  
+  # Resource Limits
+  resources:
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+  
+  # Probes
+  liveness_probe:
+    initial_delay: 60
+    period: 10
+    timeout: 5
+  
+  readiness_probe:
+    initial_delay: 30
+    period: 5
+    timeout: 3
+  
+  # Route Configuration (OpenShift)
+  route:
+    enabled: true
+    host: pgadmin.example.com  # CHANGE THIS
+    tls_enabled: false
+    tls_termination: edge
+    insecure_edge_termination_policy: Redirect
+
+# StatefulSet Configuration
+statefulset:
+  name: postgresql
+  replicas: 1
+  service_name: postgresql
+  
+# Image Pull Secrets - CONFIGURE YOUR REGISTRY CREDENTIALS
+image_pull_secrets:
+  enabled: true
+  secret_name: registry-secret
+  registry: your-registry.example.com  # CHANGE THIS
+  username: YOUR_USERNAME  # CHANGE THIS
+  password: YOUR_PASSWORD  # CHANGE THIS
+  email: your-email@example.com  # CHANGE THIS
+
+# Security Context
+security_context:
+  run_as_non_root: true
+  allow_privilege_escalation: false
+  capabilities_drop:
+    - ALL
+  seccomp_profile: RuntimeDefault
+
+# Labels
+labels:
+  app: "{{ app_name }}"
+  component: database
+  managed_by: ansible
+  environment: production
+
+# Annotations
+annotations: {}
+
+# Node Selector (optional)
+node_selector: {}
+
+# Tolerations (optional)
+tolerations: []
+
+# Affinity (optional)
+affinity: {}

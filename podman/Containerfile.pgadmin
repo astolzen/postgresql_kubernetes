@@ -1,0 +1,79 @@
+# pgAdmin4 on UBI9 - Kubernetes/OpenShift Ready
+# Based on Red Hat Universal Base Image 9
+
+FROM registry.access.redhat.com/ubi9/ubi:latest
+
+# Metadata
+LABEL name="pgadmin4" \
+      vendor="Custom" \
+      version="4" \
+      summary="pgAdmin4 Web Interface for PostgreSQL" \
+      description="pgAdmin is the most popular and feature rich Open Source administration and development platform for PostgreSQL" \
+      io.k8s.description="pgAdmin4 Web Interface on UBI9" \
+      io.k8s.display-name="pgAdmin 4" \
+      io.openshift.expose-services="80:http" \
+      io.openshift.tags="database,postgresql,pgadmin,admin"
+
+# Environment variables
+ENV PGADMIN_VERSION=9 \
+    PYTHONUNBUFFERED=1 \
+    PGADMIN_SETUP_EMAIL=admin@example.com \
+    PGADMIN_SETUP_PASSWORD=admin
+
+# Install Python 3.11 and required packages
+RUN dnf install -y \
+    python3.11 \
+    python3.11-pip \
+    python3.11-devel \
+    gcc \
+    gcc-c++ \
+    postgresql \
+    krb5-devel \
+    openldap-devel \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
+# Create pgadmin user with UID/GID 1001 for Kubernetes compatibility
+RUN groupadd -r pgadmin --gid=1001 && \
+    useradd -r -g pgadmin --uid=1001 --home-dir=/var/lib/pgadmin --shell=/bin/bash pgadmin
+
+# Create necessary directories with permissions for any user (OpenShift compatibility)
+RUN mkdir -p /var/lib/pgadmin && \
+    mkdir -p /var/log/pgadmin && \
+    chown -R pgadmin:pgadmin /var/lib/pgadmin && \
+    chown -R pgadmin:pgadmin /var/log/pgadmin && \
+    chmod 777 /var/lib/pgadmin && \
+    chmod 777 /var/log/pgadmin
+
+# Install pgAdmin4 system-wide so it's accessible to any UID
+RUN python3.11 -m pip install --no-cache-dir pgadmin4==9.11
+
+# Set PATH to include pip binaries
+ENV PATH=/usr/local/bin:$PATH
+
+# Switch to pgadmin user
+USER pgadmin
+
+# Set working directory
+WORKDIR /var/lib/pgadmin
+
+# Copy configuration script
+USER root
+COPY pgadmin-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/pgadmin-entrypoint.sh && \
+    chown pgadmin:pgadmin /usr/local/bin/pgadmin-entrypoint.sh
+
+# Switch back to pgadmin user
+USER pgadmin
+
+# Expose pgAdmin port (non-privileged port for non-root execution)
+EXPOSE 8080
+
+# Set volume mount points
+VOLUME ["/var/lib/pgadmin"]
+
+# Use entrypoint script
+ENTRYPOINT ["pgadmin-entrypoint.sh"]
+
+# Default command
+CMD ["pgadmin4"]

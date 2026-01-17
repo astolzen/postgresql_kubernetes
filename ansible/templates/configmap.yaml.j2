@@ -1,0 +1,41 @@
+---
+{% if postgresql.enabled %}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ release_name }}-config
+  namespace: {{ namespace }}
+  labels:
+    app: {{ app_name }}
+    component: postgresql
+{% if labels %}
+{% for key, value in labels.items() %}
+    {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
+data:
+  custom.conf: |
+    # Custom PostgreSQL configuration
+    
+    # Connection Settings
+    max_connections = {{ postgresql.config.max_connections }}
+    
+    # Memory Settings
+    shared_buffers = {{ postgresql.config.shared_buffers }}
+    effective_cache_size = {{ postgresql.config.effective_cache_size }}
+    maintenance_work_mem = {{ postgresql.config.maintenance_work_mem }}
+    work_mem = {{ postgresql.config.work_mem }}
+    
+    # WAL Settings
+    wal_buffers = {{ postgresql.config.wal_buffers }}
+    min_wal_size = {{ postgresql.config.min_wal_size }}
+    max_wal_size = {{ postgresql.config.max_wal_size }}
+    
+    # Query Tuning
+    random_page_cost = {{ postgresql.config.random_page_cost }}
+    effective_io_concurrency = {{ postgresql.config.effective_io_concurrency }}
+    default_statistics_target = {{ postgresql.config.default_statistics_target }}
+    
+    # Checkpoint Settings
+    checkpoint_completion_target = {{ postgresql.config.checkpoint_completion_target }}
+{% endif %}

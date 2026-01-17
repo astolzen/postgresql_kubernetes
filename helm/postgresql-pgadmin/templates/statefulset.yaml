@@ -1,0 +1,180 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "postgresql-pgadmin.fullname" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "postgresql-pgadmin.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ .Values.statefulset.serviceName }}
+  replicas: {{ .Values.statefulset.replicas }}
+  podManagementPolicy: {{ .Values.statefulset.podManagementPolicy }}
+  updateStrategy:
+    {{- toYaml .Values.statefulset.updateStrategy | nindent 4 }}
+  selector:
+    matchLabels:
+      {{- include "postgresql-pgadmin.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret-postgresql: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "postgresql-pgadmin.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "postgresql-pgadmin.serviceAccountName" . }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      {{- if .Values.postgresql.enabled }}
+      - name: postgresql
+        image: {{ include "postgresql-pgadmin.postgresql.image" . }}
+        imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
+        {{- if .Values.securityContext.enabled }}
+        securityContext:
+          runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
+          allowPrivilegeEscalation: {{ .Values.securityContext.allowPrivilegeEscalation }}
+          capabilities:
+            {{- toYaml .Values.securityContext.capabilities | nindent 12 }}
+          seccompProfile:
+            {{- toYaml .Values.securityContext.seccompProfile | nindent 12 }}
+        {{- end }}
+        ports:
+        - name: postgresql
+          containerPort: {{ .Values.postgresql.service.port }}
+          protocol: TCP
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "postgresql-pgadmin.postgresql.secretName" . }}
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "postgresql-pgadmin.postgresql.secretName" . }}
+              key: postgres-password
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "postgresql-pgadmin.postgresql.secretName" . }}
+              key: postgres-db
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        {{- with .Values.postgresql_extraEnvVars }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.postgresql.persistence.enabled }}
+        volumeMounts:
+        - name: postgresql-storage
+          mountPath: /var/lib/postgresql/data
+        {{- end }}
+        {{- if .Values.postgresql.livenessProbe.enabled }}
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U $POSTGRES_USER -d $POSTGRES_DB
+          initialDelaySeconds: {{ .Values.postgresql.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.postgresql.livenessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.postgresql.livenessProbe.timeoutSeconds }}
+          successThreshold: {{ .Values.postgresql.livenessProbe.successThreshold }}
+          failureThreshold: {{ .Values.postgresql.livenessProbe.failureThreshold }}
+        {{- end }}
+        {{- if .Values.postgresql.readinessProbe.enabled }}
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U $POSTGRES_USER -d $POSTGRES_DB
+          initialDelaySeconds: {{ .Values.postgresql.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.postgresql.readinessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.postgresql.readinessProbe.timeoutSeconds }}
+          successThreshold: {{ .Values.postgresql.readinessProbe.successThreshold }}
+          failureThreshold: {{ .Values.postgresql.readinessProbe.failureThreshold }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.postgresql.resources | nindent 10 }}
+      {{- end }}
+      {{- if .Values.pgadmin.enabled }}
+      - name: pgadmin4
+        image: {{ include "postgresql-pgadmin.pgadmin.image" . }}
+        imagePullPolicy: {{ .Values.pgadmin.image.pullPolicy }}
+        {{- if .Values.securityContext.enabled }}
+        securityContext:
+          runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
+          allowPrivilegeEscalation: {{ .Values.securityContext.allowPrivilegeEscalation }}
+          capabilities:
+            {{- toYaml .Values.securityContext.capabilities | nindent 12 }}
+          seccompProfile:
+            {{- toYaml .Values.securityContext.seccompProfile | nindent 12 }}
+        {{- end }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.pgadmin.service.targetPort }}
+          protocol: TCP
+        env:
+        - name: PGADMIN_DEFAULT_EMAIL
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "postgresql-pgadmin.pgadmin.secretName" . }}
+              key: pgadmin-email
+        - name: PGADMIN_DEFAULT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "postgresql-pgadmin.pgadmin.secretName" . }}
+              key: pgadmin-password
+        - name: PGADMIN_LISTEN_PORT
+          value: {{ .Values.pgadmin.service.targetPort | quote }}
+        {{- with .Values.pgadmin_extraEnvVars }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.pgadmin.livenessProbe.enabled }}
+        livenessProbe:
+          tcpSocket:
+            port: {{ .Values.pgadmin.service.targetPort }}
+          initialDelaySeconds: {{ .Values.pgadmin.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.pgadmin.livenessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.pgadmin.livenessProbe.timeoutSeconds }}
+        {{- end }}
+        {{- if .Values.pgadmin.readinessProbe.enabled }}
+        readinessProbe:
+          tcpSocket:
+            port: {{ .Values.pgadmin.service.targetPort }}
+          initialDelaySeconds: {{ .Values.pgadmin.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.pgadmin.readinessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.pgadmin.readinessProbe.timeoutSeconds }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.pgadmin.resources | nindent 10 }}
+      {{- end }}
+      {{- if .Values.postgresql.persistence.enabled }}
+      volumes:
+      - name: postgresql-storage
+        persistentVolumeClaim:
+          claimName: {{ include "postgresql-pgadmin.pvc.name" . }}
+      {{- end }}

@@ -1,0 +1,170 @@
+---
+- name: Deploy PostgreSQL with pgAdmin on Kubernetes/OpenShift
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  
+  vars_files:
+    - ../vars/postgresql-vars.yaml
+  
+  tasks:
+    - name: Display deployment information
+      debug:
+        msg:
+          - "Deploying PostgreSQL + pgAdmin"
+          - "Namespace: {{ namespace }}"
+          - "PostgreSQL Image: {{ postgresql.image.registry }}/{{ postgresql.image.repository }}:{{ postgresql.image.tag }}"
+          - "pgAdmin Image: {{ pgadmin.image.registry }}/{{ pgadmin.image.repository }}:{{ pgadmin.image.tag }}"
+          - "pgAdmin URL: http://{{ pgadmin.route.host }}"
+    
+    - name: Check if kubectl/oc is available
+      command: "{{ item }} version --client"
+      register: k8s_client_check
+      failed_when: false
+      changed_when: false
+      loop:
+        - kubectl
+        - oc
+    
+    - name: Set Kubernetes client command
+      set_fact:
+        k8s_client: "{{ 'oc' if k8s_client_check.results[1].rc == 0 else 'kubectl' }}"
+    
+    - name: Display Kubernetes client
+      debug:
+        msg: "Using {{ k8s_client }} as Kubernetes client"
+    
+    - name: Create temporary directory for manifests
+      tempfile:
+        state: directory
+        suffix: postgresql
+      register: temp_manifest_dir
+    
+    - name: Generate Kubernetes manifests from templates
+      template:
+        src: "../templates/{{ item }}.yaml.j2"
+        dest: "{{ temp_manifest_dir.path }}/{{ item }}.yaml"
+        mode: '0644'
+      loop:
+        - namespace
+        - secrets
+        - configmap
+        - pvc
+        - statefulset
+        - service
+        - route
+    
+    - name: Display generated manifest files
+      debug:
+        msg: "Manifests generated in {{ temp_manifest_dir.path }}"
+    
+    - name: Create namespace
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('template', '../templates/namespace.yaml.j2') | from_yaml }}"
+      when: create_namespace | bool
+    
+    - name: Apply secrets
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('template', '../templates/secrets.yaml.j2') | from_yaml_all }}"
+    
+    - name: Apply ConfigMap
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('template', '../templates/configmap.yaml.j2') | from_yaml }}"
+    
+    - name: Apply PersistentVolumeClaim
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('template', '../templates/pvc.yaml.j2') | from_yaml }}"
+      when: postgresql.persistence.enabled | bool
+    
+    - name: Apply Services
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('template', '../templates/service.yaml.j2') | from_yaml_all }}"
+    
+    - name: Apply StatefulSet
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('template', '../templates/statefulset.yaml.j2') | from_yaml }}"
+    
+    - name: Apply OpenShift Route
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('template', '../templates/route.yaml.j2') | from_yaml }}"
+      when: 
+        - pgadmin.route.enabled | bool
+        - k8s_client == 'oc'
+    
+    - name: Wait for StatefulSet to be ready
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: StatefulSet
+        name: "{{ statefulset.name }}"
+        namespace: "{{ namespace }}"
+      register: statefulset_info
+      until: 
+        - statefulset_info.resources | length > 0
+        - statefulset_info.resources[0].status.readyReplicas is defined
+        - statefulset_info.resources[0].status.readyReplicas == statefulset.replicas
+      retries: 30
+      delay: 10
+    
+    - name: Get pod status
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ namespace }}"
+        label_selectors:
+          - "app={{ app_name }}"
+      register: pod_info
+    
+    - name: Display pod information
+      debug:
+        msg:
+          - "Pod Name: {{ item.metadata.name }}"
+          - "Status: {{ item.status.phase }}"
+          - "Ready: {{ item.status.containerStatuses | selectattr('name', 'equalto', 'postgresql') | map(attribute='ready') | first | default(false) }}"
+      loop: "{{ pod_info.resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+    
+    - name: Get pgAdmin route URL
+      kubernetes.core.k8s_info:
+        api_version: route.openshift.io/v1
+        kind: Route
+        name: "{{ pgadmin.service.name }}"
+        namespace: "{{ namespace }}"
+      register: route_info
+      when: 
+        - pgadmin.route.enabled | bool
+        - k8s_client == 'oc'
+    
+    - name: Display deployment summary
+      debug:
+        msg:
+          - "=========================================="
+          - "PostgreSQL + pgAdmin Deployment Complete!"
+          - "=========================================="
+          - ""
+          - "PostgreSQL Database:"
+          - "  Service: {{ postgresql.service.name }}.{{ namespace }}.svc.cluster.local:{{ postgresql.service.port }}"
+          - "  Username: {{ postgresql.auth.username }}"
+          - "  Database: {{ postgresql.auth.database }}"
+          - ""
+          - "pgAdmin Web Interface:"
+          - "  URL: http://{{ pgadmin.route.host }}"
+          - "  Email: {{ pgadmin.auth.email }}"
+          - ""
+          - "Useful commands:"
+          - "  View pods: {{ k8s_client }} get pods -n {{ namespace }}"
+          - "  View logs: {{ k8s_client }} logs -f {{ statefulset.name }}-0 -n {{ namespace }} -c postgresql"
+          - "  Connect to PostgreSQL: {{ k8s_client }} exec -it {{ statefulset.name }}-0 -n {{ namespace }} -c postgresql -- psql -U {{ postgresql.auth.username }}"
+    
+    - name: Clean up temporary directory
+      file:
+        path: "{{ temp_manifest_dir.path }}"
+        state: absent
+      when: temp_manifest_dir.path is defined

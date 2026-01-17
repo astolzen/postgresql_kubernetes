@@ -1,0 +1,24 @@
+{{- if and .Values.pgadmin.enabled .Values.pgadmin.route.enabled }}
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ include "postgresql-pgadmin.pgadmin.serviceName" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "postgresql-pgadmin.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pgadmin
+spec:
+  host: {{ .Values.pgadmin.route.host }}
+  to:
+    kind: Service
+    name: {{ include "postgresql-pgadmin.pgadmin.serviceName" . }}
+    weight: 100
+  port:
+    targetPort: http
+  {{- if .Values.pgadmin.route.tls.enabled }}
+  tls:
+    termination: {{ .Values.pgadmin.route.tls.termination }}
+    insecureEdgeTerminationPolicy: {{ .Values.pgadmin.route.tls.insecureEdgeTerminationPolicy }}
+  {{- end }}
+  wildcardPolicy: None
+{{- end }}

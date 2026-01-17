@@ -1,0 +1,59 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Reference to base
+bases:
+  - ../../base
+
+# Namespace override for production
+namespace: database
+
+# Production-specific labels
+commonLabels:
+  environment: production
+  managed-by: kustomize
+
+# Patch the route hostname for production
+patchesStrategicMerge:
+  - route-patch.yaml
+
+# Patch resources for production workload
+patchesJson6902:
+  - target:
+      group: apps
+      version: v1
+      kind: StatefulSet
+      name: postgresql
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "4Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "1Gi"
+
+# Production images (can override with specific tags) - CHANGE THESE VALUES
+images:
+  - name: postgresql-image
+    newName: your-registry.example.com/postgresql
+    newTag: "18"
+  
+  - name: pgadmin-image
+    newName: your-registry.example.com/pgadmin
+    newTag: latest
+
+# Override secrets for production - CHANGE THESE VALUES
+# Use proper secret management tools (Vault, Sealed Secrets, etc.) in production
+secretGenerator:
+  - name: postgresql-secret
+    behavior: replace
+    literals:
+      - postgres-user=postgres
+      - postgres-password=CHANGE_ME_SECURE_PASSWORD
+      - postgres-db=postgres
+  
+  - name: pgadmin-secret
+    behavior: replace
+    literals:
+      - pgadmin-email=admin@example.com
+      - pgadmin-password=CHANGE_ME_ADMIN_PASSWORD

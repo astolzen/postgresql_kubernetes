@@ -1,0 +1,71 @@
+# PostgreSQL 18 on UBI9 - Kubernetes Ready
+# Based on Red Hat Universal Base Image 9
+
+FROM registry.access.redhat.com/ubi9/ubi:latest
+
+# Metadata
+LABEL name="postgresql-18" \
+      vendor="Custom" \
+      version="18" \
+      summary="PostgreSQL 18 Database Server" \
+      description="PostgreSQL is a powerful, open source object-relational database system" \
+      io.k8s.description="PostgreSQL 18 Database Server on UBI9" \
+      io.k8s.display-name="PostgreSQL 18" \
+      io.openshift.expose-services="5432:postgresql" \
+      io.openshift.tags="database,postgresql,postgresql18,postgres"
+
+# Set PostgreSQL version
+ENV POSTGRESQL_VERSION=18 \
+    PGDATA=/var/lib/postgresql/data \
+    POSTGRES_USER=postgres \
+    POSTGRES_DB=postgres \
+    HOME=/var/lib/postgresql
+
+# Install PostgreSQL 18 from official PostgreSQL repository
+RUN dnf install -y \
+    https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm && \
+    dnf -qy module disable postgresql && \
+    dnf install -y \
+    postgresql18-server \
+    postgresql18-contrib \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
+# Modify postgres user and group to use UID/GID 1001 for Kubernetes compatibility
+# The PostgreSQL RPM creates them with UID/GID 26 by default, so we need to change them
+RUN groupmod -g 1001 postgres && \
+    usermod -u 1001 -g 1001 postgres
+
+# Create necessary directories and set permissions
+RUN mkdir -p /var/lib/postgresql/data && \
+    mkdir -p /var/run/postgresql && \
+    chown -R postgres:postgres /var/lib/postgresql && \
+    chown -R postgres:postgres /var/run/postgresql && \
+    chmod 755 /var/lib/postgresql && \
+    chmod 2777 /var/run/postgresql
+
+# Add PostgreSQL binaries to PATH
+ENV PATH=/usr/pgsql-18/bin:$PATH
+
+# Copy initialization script
+COPY postgresql-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/postgresql-entrypoint.sh && \
+    chown postgres:postgres /usr/local/bin/postgresql-entrypoint.sh
+
+# Expose PostgreSQL port
+EXPOSE 5432
+
+# Set volume mount point for data persistence
+VOLUME ["/var/lib/postgresql/data"]
+
+# Switch to postgres user for security (non-root)
+USER postgres
+
+# Set working directory
+WORKDIR /var/lib/postgresql
+
+# Use entrypoint script
+ENTRYPOINT ["postgresql-entrypoint.sh"]
+
+# Default command to start PostgreSQL
+CMD ["postgres"]

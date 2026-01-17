@@ -1,0 +1,27 @@
+---
+{% if postgresql.enabled and postgresql.persistence.enabled %}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ release_name }}-pvc
+  namespace: {{ namespace }}
+  labels:
+    app: {{ app_name }}
+    component: postgresql
+{% if labels %}
+{% for key, value in labels.items() %}
+    {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
+spec:
+  accessModes:
+{% for mode in postgresql.persistence.access_modes %}
+    - {{ mode }}
+{% endfor %}
+{% if postgresql.persistence.storage_class %}
+  storageClassName: {{ postgresql.persistence.storage_class }}
+{% endif %}
+  resources:
+    requests:
+      storage: {{ postgresql.persistence.size }}
+{% endif %}

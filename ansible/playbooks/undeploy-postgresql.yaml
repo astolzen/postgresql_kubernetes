@@ -1,0 +1,108 @@
+---
+- name: Undeploy PostgreSQL with pgAdmin from Kubernetes/OpenShift
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  
+  vars_files:
+    - ../vars/postgresql-vars.yaml
+  
+  vars:
+    delete_namespace: false
+    delete_pvc: false
+  
+  tasks:
+    - name: Display undeploy information
+      debug:
+        msg:
+          - "Undeploying PostgreSQL + pgAdmin"
+          - "Namespace: {{ namespace }}"
+          - "Delete PVC: {{ delete_pvc }}"
+          - "Delete Namespace: {{ delete_namespace }}"
+    
+    - name: Confirm deletion
+      pause:
+        prompt: "Are you sure you want to delete the deployment? (yes/no)"
+      register: confirm_delete
+    
+    - name: Abort if not confirmed
+      fail:
+        msg: "Deployment deletion aborted by user"
+      when: confirm_delete.user_input | lower != 'yes'
+    
+    - name: Delete OpenShift Route
+      kubernetes.core.k8s:
+        state: absent
+        api_version: route.openshift.io/v1
+        kind: Route
+        name: "{{ pgadmin.service.name }}"
+        namespace: "{{ namespace }}"
+      when: pgadmin.route.enabled | bool
+      ignore_errors: true
+    
+    - name: Delete StatefulSet
+      kubernetes.core.k8s:
+        state: absent
+        api_version: apps/v1
+        kind: StatefulSet
+        name: "{{ statefulset.name }}"
+        namespace: "{{ namespace }}"
+    
+    - name: Delete Services
+      kubernetes.core.k8s:
+        state: absent
+        api_version: v1
+        kind: Service
+        name: "{{ item }}"
+        namespace: "{{ namespace }}"
+      loop:
+        - "{{ postgresql.service.name }}"
+        - "{{ pgadmin.service.name }}"
+    
+    - name: Delete PersistentVolumeClaim
+      kubernetes.core.k8s:
+        state: absent
+        api_version: v1
+        kind: PersistentVolumeClaim
+        name: "{{ release_name }}-pvc"
+        namespace: "{{ namespace }}"
+      when: delete_pvc | bool
+    
+    - name: Delete ConfigMap
+      kubernetes.core.k8s:
+        state: absent
+        api_version: v1
+        kind: ConfigMap
+        name: "{{ release_name }}-config"
+        namespace: "{{ namespace }}"
+    
+    - name: Delete Secrets
+      kubernetes.core.k8s:
+        state: absent
+        api_version: v1
+        kind: Secret
+        name: "{{ item }}"
+        namespace: "{{ namespace }}"
+      loop:
+        - "{{ release_name }}-postgresql"
+        - "{{ release_name }}-pgadmin"
+        - "{{ image_pull_secrets.secret_name }}"
+    
+    - name: Delete Namespace
+      kubernetes.core.k8s:
+        state: absent
+        api_version: v1
+        kind: Namespace
+        name: "{{ namespace }}"
+      when: delete_namespace | bool
+    
+    - name: Display undeploy summary
+      debug:
+        msg:
+          - "=========================================="
+          - "PostgreSQL + pgAdmin Undeployment Complete!"
+          - "=========================================="
+          - ""
+          - "Deleted resources from namespace: {{ namespace }}"
+          - "PVC deleted: {{ delete_pvc }}"
+          - "Namespace deleted: {{ delete_namespace }}"

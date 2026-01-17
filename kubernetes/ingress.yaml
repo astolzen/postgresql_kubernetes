@@ -1,0 +1,31 @@
+---
+# Standard Kubernetes Ingress for pgAdmin4
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pgadmin
+  namespace: database
+  labels:
+    app: postgresql
+    component: pgadmin4
+  annotations:
+    # Uncomment for nginx ingress
+    # kubernetes.io/ingress.class: nginx
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  rules:
+  - host: pgadmin.example.com  # Change to your hostname
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: pgadmin
+            port:
+              number: 80
+  # Uncomment for TLS
+  # tls:
+  # - hosts:
+  #   - pgadmin.example.com
+  #   secretName: pgadmin-tls

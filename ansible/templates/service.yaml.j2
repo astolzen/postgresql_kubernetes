@@ -1,0 +1,50 @@
+---
+{% if postgresql.enabled %}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ postgresql.service.name }}
+  namespace: {{ namespace }}
+  labels:
+    app: {{ app_name }}
+    component: postgresql
+{% if labels %}
+{% for key, value in labels.items() %}
+    {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
+spec:
+  type: {{ postgresql.service.type }}
+  ports:
+    - name: postgresql
+      port: {{ postgresql.service.port }}
+      targetPort: postgresql
+      protocol: TCP
+  selector:
+    app: {{ app_name }}
+{% endif %}
+---
+{% if pgadmin.enabled %}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ pgadmin.service.name }}
+  namespace: {{ namespace }}
+  labels:
+    app: {{ app_name }}
+    component: pgadmin
+{% if labels %}
+{% for key, value in labels.items() %}
+    {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
+spec:
+  type: {{ pgadmin.service.type }}
+  ports:
+    - name: http
+      port: {{ pgadmin.service.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    app: {{ app_name }}
+{% endif %}

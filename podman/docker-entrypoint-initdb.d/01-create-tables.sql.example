@@ -1,0 +1,23 @@
+-- Example initialization SQL script
+-- Rename this file to remove .example extension to use it
+-- This script will run during first database initialization
+
+-- Create a sample table
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create an index
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+-- Insert sample data
+INSERT INTO users (username, email) VALUES 
+    ('admin', 'admin@example.com'),
+    ('user1', 'user1@example.com')
+ON CONFLICT (username) DO NOTHING;
+
+-- Grant privileges (if needed for specific users)
+-- GRANT ALL PRIVILEGES ON TABLE users TO your_app_user;

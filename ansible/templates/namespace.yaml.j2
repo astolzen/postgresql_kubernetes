@@ -1,0 +1,18 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ namespace }}
+  labels:
+    name: {{ namespace }}
+{% if labels %}
+{% for key, value in labels.items() %}
+    {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
+{% if annotations %}
+  annotations:
+{% for key, value in annotations.items() %}
+    {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}

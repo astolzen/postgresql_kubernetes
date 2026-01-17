@@ -1,0 +1,30 @@
+---
+{% if pgadmin.enabled and pgadmin.route.enabled %}
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ pgadmin.service.name }}
+  namespace: {{ namespace }}
+  labels:
+    app: {{ app_name }}
+    component: pgadmin
+{% if labels %}
+{% for key, value in labels.items() %}
+    {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
+spec:
+  host: {{ pgadmin.route.host }}
+  to:
+    kind: Service
+    name: {{ pgadmin.service.name }}
+    weight: 100
+  port:
+    targetPort: http
+{% if pgadmin.route.tls_enabled %}
+  tls:
+    termination: {{ pgadmin.route.tls_termination }}
+    insecureEdgeTerminationPolicy: {{ pgadmin.route.insecure_edge_termination_policy }}
+{% endif %}
+  wildcardPolicy: None
+{% endif %}

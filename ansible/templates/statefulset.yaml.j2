@@ -1,0 +1,174 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ statefulset.name }}
+  namespace: {{ namespace }}
+  labels:
+    app: {{ app_name }}
+{% if labels %}
+{% for key, value in labels.items() %}
+    {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
+spec:
+  serviceName: {{ statefulset.service_name }}
+  replicas: {{ statefulset.replicas }}
+  selector:
+    matchLabels:
+      app: {{ app_name }}
+  template:
+    metadata:
+      labels:
+        app: {{ app_name }}
+{% if labels %}
+{% for key, value in labels.items() %}
+        {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
+    spec:
+{% if image_pull_secrets.enabled %}
+      imagePullSecrets:
+      - name: {{ image_pull_secrets.secret_name }}
+{% endif %}
+{% if node_selector %}
+      nodeSelector:
+{% for key, value in node_selector.items() %}
+        {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
+{% if tolerations %}
+      tolerations:
+{{ tolerations | to_nice_yaml(indent=2) | indent(6, first=False) }}
+{% endif %}
+{% if affinity %}
+      affinity:
+{{ affinity | to_nice_yaml(indent=2) | indent(8, first=False) }}
+{% endif %}
+      containers:
+{% if postgresql.enabled %}
+      - name: postgresql
+        image: {{ postgresql.image.registry }}/{{ postgresql.image.repository }}:{{ postgresql.image.tag }}
+        imagePullPolicy: {{ postgresql.image.pull_policy }}
+        securityContext:
+          runAsNonRoot: {{ security_context.run_as_non_root }}
+          allowPrivilegeEscalation: {{ security_context.allow_privilege_escalation }}
+          capabilities:
+            drop:
+{% for cap in security_context.capabilities_drop %}
+              - {{ cap }}
+{% endfor %}
+          seccompProfile:
+            type: {{ security_context.seccomp_profile }}
+        ports:
+        - name: postgresql
+          containerPort: {{ postgresql.service.port }}
+          protocol: TCP
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ release_name }}-postgresql
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ release_name }}-postgresql
+              key: postgres-password
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: {{ release_name }}-postgresql
+              key: postgres-db
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+{% if postgresql.persistence.enabled %}
+        volumeMounts:
+        - name: postgresql-storage
+          mountPath: /var/lib/postgresql/data
+{% endif %}
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U $POSTGRES_USER -d $POSTGRES_DB
+          initialDelaySeconds: {{ postgresql.liveness_probe.initial_delay }}
+          periodSeconds: {{ postgresql.liveness_probe.period }}
+          timeoutSeconds: {{ postgresql.liveness_probe.timeout }}
+          failureThreshold: {{ postgresql.liveness_probe.failure_threshold }}
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U $POSTGRES_USER -d $POSTGRES_DB
+          initialDelaySeconds: {{ postgresql.readiness_probe.initial_delay }}
+          periodSeconds: {{ postgresql.readiness_probe.period }}
+          timeoutSeconds: {{ postgresql.readiness_probe.timeout }}
+          failureThreshold: {{ postgresql.readiness_probe.failure_threshold }}
+        resources:
+          limits:
+            cpu: {{ postgresql.resources.limits.cpu }}
+            memory: {{ postgresql.resources.limits.memory }}
+          requests:
+            cpu: {{ postgresql.resources.requests.cpu }}
+            memory: {{ postgresql.resources.requests.memory }}
+{% endif %}
+{% if pgadmin.enabled %}
+      - name: pgadmin4
+        image: {{ pgadmin.image.registry }}/{{ pgadmin.image.repository }}:{{ pgadmin.image.tag }}
+        imagePullPolicy: {{ pgadmin.image.pull_policy }}
+        securityContext:
+          runAsNonRoot: {{ security_context.run_as_non_root }}
+          allowPrivilegeEscalation: {{ security_context.allow_privilege_escalation }}
+          capabilities:
+            drop:
+{% for cap in security_context.capabilities_drop %}
+              - {{ cap }}
+{% endfor %}
+          seccompProfile:
+            type: {{ security_context.seccomp_profile }}
+        ports:
+        - name: http
+          containerPort: {{ pgadmin.service.target_port }}
+          protocol: TCP
+        env:
+        - name: PGADMIN_DEFAULT_EMAIL
+          valueFrom:
+            secretKeyRef:
+              name: {{ release_name }}-pgadmin
+              key: pgadmin-email
+        - name: PGADMIN_DEFAULT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ release_name }}-pgadmin
+              key: pgadmin-password
+        - name: PGADMIN_LISTEN_PORT
+          value: "{{ pgadmin.service.target_port }}"
+        livenessProbe:
+          tcpSocket:
+            port: {{ pgadmin.service.target_port }}
+          initialDelaySeconds: {{ pgadmin.liveness_probe.initial_delay }}
+          periodSeconds: {{ pgadmin.liveness_probe.period }}
+          timeoutSeconds: {{ pgadmin.liveness_probe.timeout }}
+        readinessProbe:
+          tcpSocket:
+            port: {{ pgadmin.service.target_port }}
+          initialDelaySeconds: {{ pgadmin.readiness_probe.initial_delay }}
+          periodSeconds: {{ pgadmin.readiness_probe.period }}
+          timeoutSeconds: {{ pgadmin.readiness_probe.timeout }}
+        resources:
+          limits:
+            cpu: {{ pgadmin.resources.limits.cpu }}
+            memory: {{ pgadmin.resources.limits.memory }}
+          requests:
+            cpu: {{ pgadmin.resources.requests.cpu }}
+            memory: {{ pgadmin.resources.requests.memory }}
+{% endif %}
+{% if postgresql.persistence.enabled %}
+      volumes:
+      - name: postgresql-storage
+        persistentVolumeClaim:
+          claimName: {{ release_name }}-pvc
+{% endif %}

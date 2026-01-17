@@ -1,0 +1,26 @@
+{{- if .Values.postgresql.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "postgresql-pgadmin.configmap.name" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "postgresql-pgadmin.labels" . | nindent 4 }}
+data:
+  custom.conf: |
+    # Custom PostgreSQL configuration
+    
+    # Connection Settings
+    max_connections = {{ .Values.postgresql.config.maxConnections }}
+    
+    # Memory Settings
+    shared_buffers = {{ .Values.postgresql.config.sharedBuffers }}
+    effective_cache_size = {{ .Values.postgresql.config.effectiveCacheSize }}
+    maintenance_work_mem = {{ .Values.postgresql.config.maintenanceWorkMem }}
+    work_mem = {{ .Values.postgresql.config.workMem }}
+    
+    # WAL Settings
+    wal_buffers = {{ .Values.postgresql.config.walBuffers }}
+    min_wal_size = {{ .Values.postgresql.config.minWalSize }}
+    max_wal_size = {{ .Values.postgresql.config.maxWalSize }}
+{{- end }}

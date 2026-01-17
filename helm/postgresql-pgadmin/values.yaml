@@ -1,0 +1,204 @@
+# Default values for postgresql-pgadmin
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Namespace configuration
+namespace: database
+createNamespace: true
+
+# PostgreSQL configuration
+postgresql:
+  enabled: true
+  image:
+    registry: your-registry.example.com
+    repository: postgresql
+    tag: "18"
+    pullPolicy: Always
+  
+  # PostgreSQL credentials - CHANGE THESE VALUES
+  auth:
+    username: postgres
+    password: CHANGE_ME_SECURE_PASSWORD
+    database: postgres
+  
+  # PostgreSQL configuration
+  config:
+    maxConnections: 100
+    sharedBuffers: "256MB"
+    effectiveCacheSize: "1GB"
+    maintenanceWorkMem: "64MB"
+    workMem: "4MB"
+    walBuffers: "16MB"
+    minWalSize: "1GB"
+    maxWalSize: "4GB"
+  
+  # Resource limits
+  resources:
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+  
+  # Probes configuration
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    successThreshold: 1
+    failureThreshold: 3
+  
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    successThreshold: 1
+    failureThreshold: 3
+  
+  # Persistence configuration
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 10Gi
+    annotations: {}
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 5432
+
+# pgAdmin configuration
+pgadmin:
+  enabled: true
+  image:
+    registry: your-registry.example.com
+    repository: pgadmin
+    tag: latest
+    pullPolicy: Always
+  
+  # pgAdmin credentials - CHANGE THESE VALUES
+  auth:
+    email: admin@example.com
+    password: CHANGE_ME_ADMIN_PASSWORD
+  
+  # Resource limits
+  resources:
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+  
+  # Probes configuration
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    timeoutSeconds: 5
+  
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 5
+    timeoutSeconds: 3
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8080
+  
+  # Ingress/Route configuration
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: pgadmin.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+  
+  # OpenShift Route configuration
+  route:
+    enabled: true
+    host: pgadmin.example.com  # CHANGE THIS
+    tls:
+      enabled: false
+      termination: edge
+      insecureEdgeTerminationPolicy: Redirect
+
+# StatefulSet configuration
+statefulset:
+  replicas: 1
+  serviceName: postgresql
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
+
+# Image pull secrets
+imagePullSecrets:
+  - name: quay-secret
+
+# Registry credentials for creating image pull secret - CHANGE THESE VALUES
+registryCredentials:
+  create: true
+  registry: your-registry.example.com
+  username: YOUR_USERNAME
+  password: YOUR_PASSWORD
+  email: your-email@example.com
+
+# Security context
+securityContext:
+  enabled: true
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  seccompProfile:
+    type: RuntimeDefault
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod labels
+podLabels: {}
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# Service Account
+serviceAccount:
+  create: false
+  annotations: {}
+  name: ""
+
+# Common labels
+commonLabels:
+  app.kubernetes.io/name: postgresql
+  app.kubernetes.io/component: database
+  app.kubernetes.io/part-of: postgresql-stack
+
+# Extra environment variables for PostgreSQL
+postgresql_extraEnvVars: []
+# - name: TZ
+#   value: "UTC"
+
+# Extra environment variables for pgAdmin
+pgadmin_extraEnvVars: []
+# - name: TZ
+#   value: "UTC"

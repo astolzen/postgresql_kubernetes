@@ -1,0 +1,80 @@
+🎉 PostgreSQL 18 with pgAdmin4 has been deployed!
+
+📦 Release: {{ .Release.Name }}
+📂 Namespace: {{ .Values.namespace }}
+
+{{- if .Values.postgresql.enabled }}
+
+🐘 PostgreSQL Database
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Internal Connection:
+  Host: {{ include "postgresql-pgadmin.postgresql.serviceName" . }}.{{ .Values.namespace }}.svc.cluster.local
+  Port: {{ .Values.postgresql.service.port }}
+  Database: {{ .Values.postgresql.auth.database }}
+  Username: {{ .Values.postgresql.auth.username }}
+  Password: <stored in secret: {{ include "postgresql-pgadmin.postgresql.secretName" . }}>
+
+Connect from within cluster:
+  kubectl exec -it {{ include "postgresql-pgadmin.fullname" . }}-0 -n {{ .Values.namespace }} -c postgresql -- psql -U {{ .Values.postgresql.auth.username }}
+
+Port forward for local access:
+  kubectl port-forward -n {{ .Values.namespace }} {{ include "postgresql-pgadmin.fullname" . }}-0 5432:5432
+  psql -h localhost -U {{ .Values.postgresql.auth.username }} -d {{ .Values.postgresql.auth.database }}
+
+{{- end }}
+
+{{- if .Values.pgadmin.enabled }}
+
+🎨 pgAdmin4 Web Interface
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{{- if .Values.pgadmin.route.enabled }}
+External URL: http://{{ .Values.pgadmin.route.host }}
+{{- if .Values.pgadmin.route.tls.enabled }}
+External URL (TLS): https://{{ .Values.pgadmin.route.host }}
+{{- end }}
+{{- else if .Values.pgadmin.ingress.enabled }}
+External URL: http://{{ (index .Values.pgadmin.ingress.hosts 0).host }}
+{{- else }}
+Port forward for local access:
+  kubectl port-forward -n {{ .Values.namespace }} {{ include "postgresql-pgadmin.fullname" . }}-0 8080:8080
+  Open: http://localhost:8080
+{{- end }}
+
+Credentials:
+  Email: {{ .Values.pgadmin.auth.email }}
+  Password: <stored in secret: {{ include "postgresql-pgadmin.pgadmin.secretName" . }}>
+
+{{- end }}
+
+📊 Check Status
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+View pods:
+  kubectl get pods -n {{ .Values.namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+View services:
+  kubectl get svc -n {{ .Values.namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+View logs:
+  kubectl logs -f {{ include "postgresql-pgadmin.fullname" . }}-0 -n {{ .Values.namespace }} -c postgresql
+  kubectl logs -f {{ include "postgresql-pgadmin.fullname" . }}-0 -n {{ .Values.namespace }} -c pgadmin4
+
+⚠️  Important Notes
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Default passwords are set in values.yaml - CHANGE THEM for production!
+2. Data is persisted in PVC: {{ include "postgresql-pgadmin.pvc.name" . }}
+3. Backup your database regularly
+4. Update image pull secret if using private registry
+
+📚 Documentation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Chart Values: helm show values {{ .Chart.Name }}
+Chart README: helm show readme {{ .Chart.Name }}
+
+For more information, visit:
+  PostgreSQL: https://www.postgresql.org/
+  pgAdmin: https://www.pgadmin.org/
